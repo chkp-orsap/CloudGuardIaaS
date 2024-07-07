@@ -5,7 +5,7 @@
      "location": {
       "type": "string"
     },
-    "virtualNetworkName": {
+      "virtualNetworkName": {
       "type": "string",
       "metadata": {
         "description": "The name of the virtual network"
@@ -27,6 +27,46 @@
       "type": "string",
       "defaultValue": "default-nsg"
     },
+    "Subnet1Name": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the 1st subnet"
+      },
+      "defaultValue": "Frontend"
+    },
+    "Subnet1Prefix": {
+      "type": "string",
+      "metadata": {
+        "description": "The address prefix of the 1st subnet"
+      },
+      "defaultValue": "10.0.1.0/24"
+    },
+    "Subnet1StartAddress": {
+      "type": "string",
+      "metadata": {
+        "description": "The first avaialable address on the 1st subnet"
+      }
+    },
+    "Subnet2Name": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the 2nd subnet"
+      },
+      "defaultValue": "Backend"
+    },
+    "Subnet2Prefix": {
+      "type": "string",
+      "metadata": {
+        "description": "The address prefix of the 2nd subnet"
+      },
+      "defaultValue": "10.0.2.0/24"
+    },
+    "Subnet2StartAddress": {
+      "type": "string",
+      "metadata": {
+        "description": "The first avaialable address on the 2nd subnet"
+      }
+    },
     "tagsByResource": {
       "type": "object",
       "defaultValue": {}
@@ -36,6 +76,38 @@
     "vnetId": "[resourceId(parameters('virtualNetworkExistingRGName'),'Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]"
   },
   "resources": [
+    {
+      "type": "Microsoft.ResourceGraph/queries",
+      "apiVersion": "2018-09-01-preview",
+      "name": "subnet1query",
+      "location": "[parameters('location')]",
+      "etag": "test",
+      "properties": {
+        "description": "check_if_subnet1_exists",
+        "query": "resources | where type == \"microsoft.network/virtualnetworks\"| where resourceGroup == \"[parameteres('virtualNetworkExistingRGName')]\"| where name == \"[parameteres('virtualNetworkName')]\""
+      }
+    },
+    {
+      "type": "Microsoft.Network/routeTables",
+      "dependsOn": ["resourceId('Microsoft.ResourceGraph/queries', 'subnet1query')"],
+      "condition": ["contains(resources('subnet1query').result[0].properties.subnets, parameters('Subnet1Name'))"],
+      "apiVersion": "2020-06-01",
+      "location": "[parameters('location')]",
+      "name": "[parameters('subnet1Name')]",
+      "properties": {
+        "routes": [
+          {
+            "name": "To-Internet",
+            "properties": {
+              "addressPrefix": "0.0.0.0/0",
+              "nextHopType": "VirtualAppliance",
+              "nextHopIpAddress": "[parameters('subnet1StartAddress')]"
+            }
+          }
+        ]
+      },
+      "tags": "[ if(contains(parameters('tagsByResource'), 'Microsoft.Network/routeTables'), parameters('tagsByResource')['Microsoft.Network/routeTables'], json('{}')) ]"
+    },
     {
       "type": "Microsoft.Network/networkSecurityGroups",
       "condition": "[parameters('deployNsg')]",

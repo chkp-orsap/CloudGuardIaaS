@@ -607,6 +607,24 @@
           "virtualNetworkExistingRGName": {
             "value": "[variables('vnetRGName')]"
           },
+          "Subnet1Name": {
+            "value": "[parameters('Subnet1Name')]"
+          },
+          "Subnet1Prefix": {
+            "value": "[parameters('Subnet1Prefix')]"
+          },
+          "Subnet1StartAddress": {
+            "value": "[parameters('Subnet1StartAddress')]"
+          },
+          "Subnet2Name": {
+            "value": "[parameters('Subnet2Name')]"
+          },
+          "Subnet2Prefix": {
+            "value": "[parameters('Subnet2Prefix')]"
+          },
+          "Subnet2StartAddress": {
+            "value": "[parameters('Subnet2StartAddress')]"
+          },
           "tagsByResource": {
             "value": "[parameters('tagsByResource')]"
           },
