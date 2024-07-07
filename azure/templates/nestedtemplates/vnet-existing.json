@@ -70,6 +70,12 @@
     "tagsByResource": {
       "type": "object",
       "defaultValue": {}
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "metadata": {
+        "description": "Resource Group Name"
+      }
     }
   },
   "variables": {
@@ -77,22 +83,8 @@
   },
   "resources": [
     {
-      "type": "Microsoft.ResourceGraph/queries",
-      "apiVersion": "2018-09-01-preview",
-      "name": "subnetsquery",
-      "location": "[parameters('location')]",
-      "etag": "test",
-      "properties": {
-        "description": "check_if_subnets_exists",
-        "query": "resources | where type == \"microsoft.network/virtualnetworks\"| where resourceGroup == \"[parameteres('virtualNetworkExistingRGName')]\"| where name == \"[parameteres('virtualNetworkName')]\""
-      }
-    },
-    {
       "type": "Microsoft.Network/routeTables",
-      "dependsOn": [
-        "[resourceId('Microsoft.ResourceGraph/queries', 'subnetsquery')]"
-      ],
-      "condition": "[contains(resources('subnetsquery').result[0].properties.subnets, parameters('Subnet1Name'))]",
+      "condition": "[not(empty(resourceId(parameters('virtualNetworkExistingRGName'), 'Microsoft.Network/virtualNetworks/subnets/', parameters('virtualNetworkName'), parameters('Subnet1Name'))))]",
       "apiVersion": "2020-06-01",
       "location": "[parameters('location')]",
       "name": "[parameters('subnet1Name')]",
@@ -112,10 +104,7 @@
     },
     {
       "type": "Microsoft.Network/routeTables",
-      "dependsOn": [
-        "[resourceId('Microsoft.ResourceGraph/queries', 'subnetsquery')]"
-      ],
-      "condition": "[contains(resources('subnetsquery').result[0].properties.subnets, parameters('Subnet2Name'))]",
+      "condition": "[not(empty(resourceId(parameters('virtualNetworkExistingRGName'), 'Microsoft.Network/virtualNetworks/subnets/', parameters('virtualNetworkName'), parameters('Subnet2Name'))))]",
       "apiVersion": "2020-06-01",
       "location": "[parameters('location')]",
       "name": "[parameters('subnet2Name')]",
@@ -134,39 +123,54 @@
       "tags": "[if(contains(parameters('tagsByResource'), 'Microsoft.Network/routeTables'), parameters('tagsByResource')['Microsoft.Network/routeTables'], json('{}')) ]"
     },
     {
-      "type": "Microsoft.Network/networkSecurityGroups",
-      "condition": "[parameters('deployNsg')]",
-      "apiVersion": "2020-06-01",
-      "location": "[parameters('location')]",
-      "name": "[parameters('NewNsgName')]",
+      "name": "nsgDeployment",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2021-04-01",
+      "resourceGroup": "[parameters('resourceGroupName')]",
       "properties": {
-        "securityRules": [
-          {
-            "name": "AllowAllInBound",
-            "properties": {
-              "description": "Allow all inbound connections",
-              "protocol": "*",
-              "sourcePortRange": "*",
-              "destinationPortRange": "*",
-              "sourceAddressPrefix": "*",
-              "destinationAddressPrefix": "*",
-              "access": "Allow",
-              "priority": "100",
-              "direction": "Inbound"
+        "mode": "Incremental",
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "type": "Microsoft.Network/networkSecurityGroups",
+              "condition": "[parameters('deployNsg')]",
+              "apiVersion": "2020-06-01",
+              "location": "[parameters('location')]",
+              "name": "[parameters('NewNsgName')]",
+              "properties": {
+                "securityRules": [
+                  {
+                    "name": "AllowAllInBound",
+                    "properties": {
+                      "description": "Allow all inbound connections",
+                      "protocol": "*",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "*",
+                      "sourceAddressPrefix": "*",
+                      "destinationAddressPrefix": "*",
+                      "access": "Allow",
+                      "priority": "100",
+                      "direction": "Inbound"
+                    }
+                  }
+                ]
+              },
+              "tags": "[if(contains(parameters('tagsByResource'), 'Microsoft.Network/networkSecurityGroups'), parameters('tagsByResource')['Microsoft.Network/networkSecurityGroups'], json('{}')) ]"
             }
-          }
-        ]
-      },
-      "tags": "[if(contains(parameters('tagsByResource'), 'Microsoft.Network/networkSecurityGroups'), parameters('tagsByResource')['Microsoft.Network/networkSecurityGroups'], json('{}')) ]"
+          ]
+        }
+      }
     },
     {
       "type": "Microsoft.Network/virtualNetworks/subnets",
       "dependsOn": [
         "[resourceId('Microsoft.Network/routeTables', parameters('subnet1Name'))]"
       ],
-      "condition": "[contains(resources('subnetsquery').result[0].properties.subnets, parameters('Subnet1Name'))]",
+      "condition": "[not(empty(resourceId(parameters('virtualNetworkExistingRGName'), 'Microsoft.Network/virtualNetworks/subnets/', parameters('virtualNetworkName'), parameters('Subnet1Name'))))]",
       "apiVersion": "2023-11-01",
-      "name": "[parameters('Subnet1Name')]",
+      "name": "[concat(parameters('virtualNetworkName'), '/', parameters('Subnet1Name'))]",
       "properties": {
         "addressPrefix": "[parameters('Subnet1Prefix')]",
         "routeTable": {
@@ -179,9 +183,9 @@
       "dependsOn": [
         "[resourceId('Microsoft.Network/routeTables', parameters('subnet2Name'))]"
       ],
-      "condition": "[contains(resources('subnetsquery').result[0].properties.subnets, parameters('Subnet2Name'))]",
+      "condition": "[not(empty(resourceId(parameters('virtualNetworkExistingRGName'), 'Microsoft.Network/virtualNetworks/subnets/', parameters('virtualNetworkName'), parameters('Subnet2Name'))))]",
       "apiVersion": "2023-11-01",
-      "name": "[parameters('Subnet2Name')]",
+      "name": "[concat(parameters('virtualNetworkName'), '/', parameters('Subnet2Name'))]",
       "properties": {
         "addressPrefix": "[parameters('Subnet2Prefix')]",
         "routeTable": {
